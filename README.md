@@ -1,88 +1,95 @@
-# Server Sync Mod Template
+# NoSnowyBiome
 
-Can be used to already have your project set up and ready to go with ServerSync and basic version checking. Please see the [Original Repository](https://github.com/blaxxun-boop/ServerSync) if you have to update, or have further questions this template might not answer.
+In Valheim, snowy visuals on pieces and vegetation are hardcoded.
+This mod removes the snow accumulation visual effect from vegetation-like world objects in selected biomes, mainly for custom biomes added by Expand World Data.
 
-Thank you Blaxxun for ServerSync!
+The active build handles vegetation-oriented world object snow visuals.
 
-ServerSync
-==========
+Expand World Data is the intended setup because this mod reads custom biome rules from `expand_biomes.yaml`. <br>
 
-Bundling the dll
-----------------
+![](https://i.ibb.co/Qvy3Psrk/1.png) <br>
+Snowy visuals of vegetations and pieces over altitude > 50 <br>
 
-You need to ensure the dll is available to your mod.
+![](https://i.ibb.co/VcMcVnG3/2.png) <br>
+After installing this mod and configuring to not have snowy visuals <br>
+(Can't remove snowy visuals on pieces for now unfortunately) <br>
 
-Including the dll is best done via ILRepack (https://github.com/ravibpatel/ILRepack.Lib.MSBuild.Task). You can load this package (ILRepack.Lib.MSBuild.Task) from NuGet.
+## What It Reads
 
-Then create a file ILRepack.targets in your project folder. File content:
+This mod supports extra fields inside Expand World Data's `expand_biomes.yaml` biome entries:
+
+- `noSnow`
+- `noSnowMinAltitude`
+
+These are not official Expand World Data fields. `NoSnowyBiome` reads them from the same synced YAML and applies its own behavior.
+
+## `expand_biomes.yaml` Example
+
+```yaml
+- biome: MyCustomBiome
+  terrain: Plains
+  nature: Plains
+  noSnow: true
+  noSnowMinAltitude: 50
 ```
-<?xml version="1.0" encoding="utf-8"?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <Target Name="ILRepacker" AfterTargets="Build">
-        <ItemGroup>
-            <InputAssemblies Include="$(TargetPath)" />
-            <InputAssemblies Include="$(OutputPath)\ServerSync.dll" />
-        </ItemGroup>
-        <ILRepack Parallel="true" DebugInfo="true" Internalize="true" InputAssemblies="@(InputAssemblies)" OutputFile="$(TargetPath)" TargetKind="SameAsPrimaryAssembly" LibraryPath="$(OutputPath)" />
-    </Target>
-</Project>
-```
 
-Using the ServerSync
---------------------
+Meaning:
 
-Declare a variable:
+- `noSnow: true`
+  Enables snow visual removal for supported vegetation-like objects in that biome.
+- `noSnowMinAltitude: 50`
+  Starts removing supported object snow visuals at altitude `50` and above.
 
-`ServerSync.ConfigSync configSync = new ServerSync.ConfigSync("my.mod.guid") { DisplayName = "My Mod Name", CurrentVersion = "1.2.3", MinimumRequiredVersion = "1.2.0" };`
+## Behavior Priority
 
-All of DisplayName, CurrentVersion and MinimumRequiredVersion are optional.
-If CurrentVersion is specified, then the user will see a warning in their BepInEx log if the server version does not match the client version.
-If also MinimumRequiredVersion is specified and the client has an older version than the servers MinimumRequiredVersion, the client will be immediately disconnected and see an error message, explaining why.
-To display a friendly name for your mod in the error messages, specify DisplayName, otherwise the primary identifier will be used.
-Also note that the primary identifier (I propose using the GUID, "my.mod.guid") should never be changed (changing it will break backwards compatibility completely).
+For world object snow removal, priority is:
 
-There are two public methods on the ServerSync.ConfigSync class:
+1. `expand_biomes.yaml` rule for that biome
 
-- `AddConfigEntry<T>(ConfigEntry<T> configEntry)`
+If a biome does not have a `noSnow` YAML rule, the active build leaves that biome unchanged.
 
-  Registers a BepInEx ConfigEntry to be synchronized.
+If `noSnowMinAltitude` is missing but `noSnow: true` exists, the active build uses the internal default altitude `50`.
 
-- `AddLockingConfigEntry<T>(ConfigEntry<T> lockingConfig) where T : IConvertible`
+## Minimap Colors
 
-  Registers a BepInEx ConfigEntry to be synchronized, whose value determines whether the config is locked. If the value is zero when converted to integer, the config is not locked. Otherwise it is locked.
-  This method must be called at most once. If not called at all, the config will never be locked.
+NoSnowyBiome 1.1.0 no longer patches minimap colors. Expand World Data 1.68 and later provide their own minimap color controls, so configure minimap behavior through Expand World Data instead. Legacy `noSnowWhitening` fields are not supported.
 
-Useful properties:
+## Installation
 
-- `static bool ProcessingServerUpdate`
+- The server does not need `NoSnowyBiome.dll`, but fields in the server's `expand_biomes.yaml` can be synced to clients. <br>
+- Clients need `NoSnowyBiome.dll` for the `noSnow` fields to take effect. They do not need duplicate local entries when the server syncs them.
 
-  The mod is receiving and applying configs from the server. Used internally to avoid config writing loops.
+## Supported Active Object Types
 
-- `bool IsSourceOfTruth`
+The active build attaches suppression to vegetation-oriented runtime objects such as:
 
-  Whether the local config is currently being used. False if a remote config is currently applied.
+- `StaticPhysics`
+- `Pickable`
+- `PickableItem`
+- `Plant`
+- `TreeBase`
+- `TreeLog`
+- `Destructible`
+- `MineRock5`
 
-Additionally, there is a class `ServerSync.CustomSyncedValue<T>(ConfigSync, string Identifier, T value = default)` to synchronize arbitrary data (more precisely: all data which Valheims native serialization supports).
-This class registers itself to the passed ConfigSync instance upon instantiation.
-It provides a Value property and a ValueChanged event handler.
-The Identifier must be unique for the given ConfigSync instance.
+## How Vegetation Suppression Works
 
+The vegetation patch is simple:
 
-Handy config function
----------------------
+1. When a supported vegetation-like object wakes up, the mod checks its biome and altitude.
+2. If that biome has `noSnow: true` and the object is above the configured minimum altitude, the mod forces the material snow value `_AddSnow` to `0`.
+3. If the shader uses the `_ADDSNOW_ON` keyword, that snow path is disabled as well.
 
-To avoid manually adding each config entry to the ConfigSync instance, I propose to add a simple wrapper `config()` (with the same signature as `Config.Bind()`) to your UnityBasePlugin class:
+In practice, this means the mod is not repainting the whole world every frame. It attaches to supported vegetation-style objects when they load, applies the no-snow material state, and then stops.
 
-```
-ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
-{
-    ConfigEntry<T> configEntry = Config.Bind(group, name, value, description);
+## Why Pieces Are Not Patched In The Active Build
 
-    SyncedConfigEntry<T> syncedConfigEntry = configSync.AddConfigEntry(configEntry);
-    syncedConfigEntry.SynchronizedConfig = synchronizedSetting;
+Vegetation and pieces do not expose the same controls.
 
-    return configEntry;
-}
+- Vegetation shaders expose `_AddSnow`, so the active mod can disable snow accumulation directly and cleanly.
+- Many build pieces use `Custom/Piece`, and that shader path does not expose a matching `_AddSnow` control in the same way.
 
-ConfigEntry<T> config<T>(string group, string name, T value, string description, bool synchronizedSetting = true) => config(group, name, value, new ConfigDescription(description), synchronizedSetting);
-```
+That made piece handling much less reliable:
+
+- direct suppress paths did not consistently remove the visual
+- replacement-material experiments changed the look of the piece and could drift away from the original material appearance

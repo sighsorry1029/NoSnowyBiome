@@ -1,9 +1,10 @@
 {
-  "name": "ServerSyncModTemplate",
-  "version_number": "1.0.0",
-  "website_url": "https://discord.gg/pdHgy6Bsng",
-  "description": "Your mod description goes here. Do not forget to replace the icon.png file with your own. Must be 256x256. Your Readme.md file will be copied from the one in your project folder.",
+  "name": "NoSnowyBiome",
+  "version_number": "1.1.0",
+  "website_url": "https://discord.com/invite/VFRJcPwUdm",
+  "description": "Removes snow accumulation visuals from vegetation-like world objects in selected biomes, mainly for custom biomes added by Expand World Data",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2202"
+    "denikson-BepInExPack_Valheim-5.4.2333",
+    "JereKuusela-Expand_World_Data-1.68.0"
   ]
 }

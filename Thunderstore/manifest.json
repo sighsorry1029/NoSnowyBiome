@@ -1,10 +1,9 @@
 {
   "name": "NoSnowyBiome",
-  "version_number": "1.1.0",
+  "version_number": "1.1.1",
   "website_url": "https://discord.com/invite/VFRJcPwUdm",
-  "description": "Removes snow accumulation visuals from vegetation-like world objects in selected biomes, mainly for custom biomes added by Expand World Data",
+  "description": "Server-synced snow visual rules for vegetation and supported building materials. Standalone with optional Expand World Data custom-biome support.",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2333",
-    "JereKuusela-Expand_World_Data-1.68.0"
+    "denikson-BepInExPack_Valheim-5.4.2350"
   ]
 }

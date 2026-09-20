@@ -1,95 +1,63 @@
 # NoSnowyBiome
 
-In Valheim, snowy visuals on pieces and vegetation are hardcoded.
-This mod removes the snow accumulation visual effect from vegetation-like world objects in selected biomes, mainly for custom biomes added by Expand World Data.
+Controls altitude-based snow visuals on vegetation, world objects, and supported building materials in selected Valheim biomes. Works standalone; Expand World Data (EWD) is optional and enables rules targeting its custom biome names.
 
-The active build handles vegetation-oriented world object snow visuals.
+Targets Valheim 1.0.15. It does not generate biomes, modify terrain, change minimap colors, or replace shaders.
 
-Expand World Data is the intended setup because this mod reads custom biome rules from `expand_biomes.yaml`. <br>
+![](https://i.ibb.co/Qvy3Psrk/1.png)
 
-![](https://i.ibb.co/Qvy3Psrk/1.png) <br>
-Snowy visuals of vegetations and pieces over altitude > 50 <br>
+![](https://i.ibb.co/VcMcVnG3/2.png)
 
-![](https://i.ibb.co/VcMcVnG3/2.png) <br>
-After installing this mod and configuring to not have snowy visuals <br>
-(Can't remove snowy visuals on pieces for now unfortunately) <br>
+## Installation and Server Sync
 
-## What It Reads
+Requires BepInExPack Valheim 5.4.2350. Install `NoSnowyBiome.dll` in `BepInEx/plugins`.
 
-This mod supports extra fields inside Expand World Data's `expand_biomes.yaml` biome entries:
+- **Standalone / client only:** uses the client's own rules. EWD and a server installation of NoSnowyBiome are not required.
+- **Server-controlled rules:** install this build on the server/host and clients. The server sends its rules and `General.Enabled` setting to clients, including subsequent YAML edits. A dedicated server only handles configuration, not rendering.
+- **Optional installation:** clients without NoSnowyBiome are not rejected, but will retain vanilla visuals. A client with the mod can still join a server without it and use local rules.
+- **Local settings are preserved:** received YAML is used in memory, never written over the client's YAML. Local edits made while connected are retained for after disconnect and do not replace the active server rules. ServerSync restores local settings on disconnect/world shutdown. Synchronized configuration uses ServerSync's normal non-admin lock and administrator permissions.
+- **EWD worlds:** EWD is still needed wherever the world requires it. NoSnowyBiome's optional integration does not replace EWD or its own client/server requirements.
 
-- `noSnow`
-- `noSnowMinAltitude`
+ServerSync and YamlDotNet are bundled inside the mod DLL; do not install them as separate plugins.
 
-These are not official Expand World Data fields. `NoSnowyBiome` reads them from the same synced YAML and applies its own behavior.
+## Rules
 
-## `expand_biomes.yaml` Example
+On first launch the mod creates `BepInEx/config/NoSnowyBiome.yaml` with snow suppression enabled for Mistlands at altitude 50 and above. Existing files are not overwritten. The example below also includes an optional custom-biome rule.
 
 ```yaml
-- biome: MyCustomBiome
-  terrain: Plains
-  nature: Plains
+- biome: Mistlands
   noSnow: true
   noSnowMinAltitude: 50
+
+- biome: MyCustomBiome
+  noSnow: true
+  noSnowMinAltitude: 0
 ```
 
-Meaning:
+- `biome` is one vanilla biome name or an EWD `biome` identifier, not its translated display name, a numeric ID, or a biome mask. Names are matched case-insensitively.
+- `noSnow: true` suppresses supported snow visuals. Omitted or `false` leaves the biome unchanged.
+- `noSnowMinAltitude` is height above the current water level, measured at the object's origin. The threshold is inclusive and defaults to `50` when omitted.
+- Unlisted biomes remain unchanged. Use `[]` to clear all rules and restore original materials.
+- File size, modification time, and creation time are checked once per second; the contents are read only when this metadata changes or a failed read needs retrying. Save normally so the file timestamp is updated. Malformed YAML, unknown fields, duplicate rules, invalid numbers, or a temporarily missing file retain the last valid rules. Files must be at most 1 MiB.
 
-- `noSnow: true`
-  Enables snow visual removal for supported vegetation-like objects in that biome.
-- `noSnowMinAltitude: 50`
-  Starts removing supported object snow visuals at altitude `50` and above.
+`General.Enabled` and local-only `Debug.VerboseLogging` are in `BepInEx/config/sighsorry.NoSnowyBiome.cfg`. Configuration-manager changes apply live; restart after editing the CFG by hand. The YAML rules reload automatically.
 
-## Behavior Priority
+## EWD Integration and Existing Configurations
 
-For world object snow removal, priority is:
+EWD is a soft dependency. When present, NoSnowyBiome queries its public biome-name lookup and re-resolves rules after delayed synchronization or name/ID changes. Unresolved names remain inactive until EWD knows them.
 
-1. `expand_biomes.yaml` rule for that biome
+**The old fields inside `expand_biomes.yaml` are no longer read.** Move `biome`, `noSnow`, and `noSnowMinAltitude` rules into `NoSnowyBiome.yaml`, then remove `noSnow` and `noSnowMinAltitude` from the EWD file. Keep terrain, nature, environments, and other EWD settings in EWD's file. Existing files are not rewritten automatically and there is no legacy-format fallback.
 
-If a biome does not have a `noSnow` YAML rule, the active build leaves that biome unchanged.
+Leaving the old custom fields in EWD's YAML can still produce EWD's unknown-property errors. NoSnowyBiome no longer intercepts EWD's YAML parsing or suppresses its logging.
 
-If `noSnowMinAltitude` is missing but `noSnow: true` exists, the active build uses the internal default altitude `50`.
+## Visual Scope
 
-## Minimap Colors
+Supported runtime objects include `StaticPhysics`, `Pickable`, `PickableItem`, `Plant`, `TreeBase`, `TreeLog`, `Destructible`, `MineRock5`, and `Piece` objects with supported materials.
 
-NoSnowyBiome 1.1.0 no longer patches minimap colors. Expand World Data 1.68 and later provide their own minimap color controls, so configure minimap behavior through Expand World Data instead. Legacy `noSnowWhitening` fields are not supported.
+The mod uses each shader's existing `_AddSnow` property: float for vegetation and integer for the current `Custom/Piece` shader. It also disables `_ADDSNOW_ON` where used. No custom shader bundle is needed for these surface effects.
 
-## Installation
+Suppressed renderers sharing the same original material reuse one snow-disabled variant, including inactive wear/LOD children. The original material is never modified. Each slot retains its original reference; the shared variant is released when its last user restores or unloads. Slots replaced by another system are preserved, and unrelated material property blocks are not overwritten.
 
-- The server does not need `NoSnowyBiome.dll`, but fields in the server's `expand_biomes.yaml` can be synced to clients. <br>
-- Clients need `NoSnowyBiome.dll` for the `noSnow` fields to take effect. They do not need duplicate local entries when the server syncs them.
+Loaded objects are re-evaluated after rule changes, biome-name changes, and movement. If the final suppression state is unchanged, the mod does not recreate or reassign materials. A rolling refresh pass starts roughly once per second (or earlier for new objects/settings) and is spread across frames: at most 64 objects per frame, with a roughly 1 ms time budget checked between objects. One expensive object can exceed that time budget; crowded scenes can take longer than a second to finish a pass. Biome-name resolution reuses its dictionary buffers while still detecting EWD ID changes.
 
-## Supported Active Object Types
-
-The active build attaches suppression to vegetation-oriented runtime objects such as:
-
-- `StaticPhysics`
-- `Pickable`
-- `PickableItem`
-- `Plant`
-- `TreeBase`
-- `TreeLog`
-- `Destructible`
-- `MineRock5`
-
-## How Vegetation Suppression Works
-
-The vegetation patch is simple:
-
-1. When a supported vegetation-like object wakes up, the mod checks its biome and altitude.
-2. If that biome has `noSnow: true` and the object is above the configured minimum altitude, the mod forces the material snow value `_AddSnow` to `0`.
-3. If the shader uses the `_ADDSNOW_ON` keyword, that snow path is disabled as well.
-
-In practice, this means the mod is not repainting the whole world every frame. It attaches to supported vegetation-style objects when they load, applies the no-snow material state, and then stops.
-
-## Why Pieces Are Not Patched In The Active Build
-
-Vegetation and pieces do not expose the same controls.
-
-- Vegetation shaders expose `_AddSnow`, so the active mod can disable snow accumulation directly and cleanly.
-- Many build pieces use `Custom/Piece`, and that shader path does not expose a matching `_AddSnow` control in the same way.
-
-That made piece handling much less reliable:
-
-- direct suppress paths did not consistently remove the visual
-- replacement-material experiments changed the look of the piece and could drift away from the original material appearance
+This does **not** remove Deep North's separate accumulated snow meshes/`_SnowLevel` system, change weather/freezing/gameplay, or add controls to shaders that have no supported snow property. Materials overridden by another mod's `_AddSnow` property block can take precedence. Minimap colors remain EWD's responsibility when using EWD.

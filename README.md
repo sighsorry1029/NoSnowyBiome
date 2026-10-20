@@ -10,7 +10,7 @@ Targets Valheim 1.0.15. It does not generate biomes, modify terrain, change mini
 
 ## Installation and Server Sync
 
-Requires BepInExPack Valheim 5.4.2350. Install `NoSnowyBiome.dll` in `BepInEx/plugins`.
+Requires BepInExPack Valheim 5.4.2351. Install `NoSnowyBiome.dll` in `BepInEx/plugins`.
 
 - **Standalone / client only:** uses the client's own rules. EWD and a server installation of NoSnowyBiome are not required.
 - **Server-controlled rules:** install this build on the server/host and clients. The server sends its rules and `General.Enabled` setting to clients, including subsequent YAML edits. A dedicated server only handles configuration, not rendering.
@@ -45,6 +45,8 @@ On first launch the mod creates `BepInEx/config/NoSnowyBiome.yaml` with snow sup
 ## EWD Integration and Existing Configurations
 
 EWD is a soft dependency. When present, NoSnowyBiome queries its public biome-name lookup and re-resolves rules after delayed synchronization or name/ID changes. Unresolved names remain inactive until EWD knows them.
+
+The optional adapter targets EWD 1.79's `ExpandWorldData.Biome.BiomeManager.TryGetBiome` API. The older manager namespace is not supported. EWD's DLL and YAML files are not modified.
 
 **The old fields inside `expand_biomes.yaml` are no longer read.** Move `biome`, `noSnow`, and `noSnowMinAltitude` rules into `NoSnowyBiome.yaml`, then remove `noSnow` and `noSnowMinAltitude` from the EWD file. Keep terrain, nature, environments, and other EWD settings in EWD's file. Existing files are not rewritten automatically and there is no legacy-format fallback.
 

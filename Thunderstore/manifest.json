@@ -1,9 +1,9 @@
 {
   "name": "NoSnowyBiome",
-  "version_number": "1.1.1",
+  "version_number": "1.1.2",
   "website_url": "https://discord.com/invite/VFRJcPwUdm",
   "description": "Server-synced snow visual rules for vegetation and supported building materials. Standalone with optional Expand World Data custom-biome support.",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2350"
+    "denikson-BepInExPack_Valheim-5.4.2351"
   ]
 }

@@ -7,6 +7,7 @@ namespace NoSnowyBiome
     internal sealed class ExpandWorldDataCompat
     {
         internal const string PluginGuid = "expand_world_data";
+        internal const string BiomeManagerTypeName = "ExpandWorldData.Biome.BiomeManager";
         private delegate bool TryGetBiomeDelegate(string name, out Heightmap.Biome biome);
         private TryGetBiomeDelegate? _tryGetBiome;
         internal bool Available => _tryGetBiome != null;
@@ -16,11 +17,11 @@ namespace NoSnowyBiome
             if (!Chainloader.PluginInfos.TryGetValue(PluginGuid, out var plugin)) return;
             try
             {
-                Type? manager = plugin.Instance.GetType().Assembly.GetType("ExpandWorldData.BiomeManager");
+                Type? manager = plugin.Instance.GetType().Assembly.GetType(BiomeManagerTypeName);
                 MethodInfo? method = manager?.GetMethod("TryGetBiome", BindingFlags.Public | BindingFlags.Static,
                     null, new[] { typeof(string), typeof(Heightmap.Biome).MakeByRefType() }, null);
                 if (method == null || method.ReturnType != typeof(bool))
-                    throw new MissingMethodException("ExpandWorldData.BiomeManager.TryGetBiome");
+                    throw new MissingMethodException(BiomeManagerTypeName + ".TryGetBiome");
                 _tryGetBiome = (TryGetBiomeDelegate)Delegate.CreateDelegate(typeof(TryGetBiomeDelegate), method);
             }
             catch (Exception ex)

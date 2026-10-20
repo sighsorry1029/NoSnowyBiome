@@ -16,7 +16,7 @@ namespace NoSnowyBiome
     public sealed class NoSnowyBiomePlugin : BaseUnityPlugin
     {
         internal const string ModName = "NoSnowyBiome";
-        internal const string ModVersion = "1.1.1";
+        internal const string ModVersion = "1.1.2";
         internal const string Author = "sighsorry";
         internal const string ModGuid = $"{Author}.{ModName}";
 

@@ -184,5 +184,10 @@ namespace NoSnowyBiome
         }
     }
     internal sealed class TestConfig { public bool Value { get; set; } }
-    internal sealed class TestLog { public void LogInfo(string message) { } }
+    internal sealed class TestLog
+    {
+        public readonly List<string> Warnings = new();
+        public void LogInfo(string message) { }
+        public void LogWarning(string message) => Warnings.Add(message);
+    }
 }

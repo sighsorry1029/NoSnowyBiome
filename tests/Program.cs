@@ -141,6 +141,7 @@ finally
 }
 
 VisualRegression.Run(Check);
+EwdCompatRegression.Run(Check);
 
 string dll = Path.GetFullPath(args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "../../../../bin/Debug/NoSnowyBiome.dll"));
 Assembly merged = Assembly.LoadFile(dll);
@@ -198,7 +199,31 @@ Check(reset.Body.Instructions.Any(i => i.OpCode == OpCodes.Ldfld && i.Operand is
 Check(!allTypes.SelectMany(t => t.Methods).Where(m => m.HasBody).SelectMany(m => m.Body.Instructions)
     .Any(i => i.Operand is FieldReference f && f.DeclaringType.Name == "ZRoutedRpc" && f.Name == "Everybody"), "no obsolete Everybody field accesses");
 
-foreach (string managedPath in args.Skip(1))
+var compat = allTypes.Single(t => t.FullName == "NoSnowyBiome.ExpandWorldDataCompat");
+Check(compat.Methods.Single(m => m.Name == "Initialize").Body.Instructions
+    .Any(i => i.OpCode == OpCodes.Ldstr && Equals(i.Operand, ExpandWorldDataCompat.BiomeManagerTypeName)),
+    "merged DLL binds the current EWD manager namespace");
+int ewdIndex = Array.IndexOf(args, "--ewd");
+if (ewdIndex >= 0)
+{
+    if (ewdIndex != args.Length - 2) throw new ArgumentException("Use --ewd <DLL> after the game managed paths.");
+    using var ewd = ModuleDefinition.ReadModule(Path.GetFullPath(args[ewdIndex + 1]));
+    var manager = ewd.GetType(ExpandWorldDataCompat.BiomeManagerTypeName);
+    Check(manager != null && manager.IsPublic, "installed EWD exposes the expected public manager");
+    var lookup = manager!.Methods.Single(m => m.Name == "TryGetBiome");
+    Check(lookup.IsPublic && lookup.IsStatic && !lookup.HasGenericParameters &&
+        lookup.ReturnType.FullName == "System.Boolean" && lookup.Parameters.Count == 2 &&
+        lookup.Parameters[0].ParameterType.FullName == "System.String" && lookup.Parameters[1].IsOut &&
+        lookup.Parameters[1].ParameterType.FullName == "Heightmap/Biome&" &&
+        lookup.Parameters[1].ParameterType.GetElementType().Scope is AssemblyNameReference biomeScope &&
+        biomeScope.Name == "assembly_valheim", "installed EWD public lookup matches the cached delegate signature");
+    Check(lookup.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "ToLowerInvariant") &&
+        lookup.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "TryGetValue"),
+        "installed EWD lookup retains case-insensitive name mapping");
+    Console.WriteLine($"Installed EWD API metadata checks passed: {args[ewdIndex + 1]}");
+}
+
+foreach (string managedPath in args.Skip(1).Take(ewdIndex < 0 ? int.MaxValue : ewdIndex - 1))
 {
     using var gameResolver = new DefaultAssemblyResolver();
     gameResolver.AddSearchDirectory(Path.GetFullPath(managedPath));
@@ -226,4 +251,4 @@ foreach (string managedPath in args.Skip(1))
     Console.WriteLine($"Original game API and visual patch target checks passed: {managedPath}");
 }
 
-Console.WriteLine($"PASS: {assertions} assertions. Rule/file tests, managed visual ownership/scheduling tests, merged-DLL checks, and isolated CustomSyncedValue tests; no actual game/network/GPU runtime was exercised.");
+Console.WriteLine($"PASS: {assertions} assertions. Rule/file tests, managed visual and EWD adapter tests, merged-DLL checks, and isolated CustomSyncedValue tests; no actual game/network/GPU runtime was exercised.");

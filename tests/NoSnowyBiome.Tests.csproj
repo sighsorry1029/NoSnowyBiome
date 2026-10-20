@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="..\SnowRules.cs" Link="SnowRules.cs" />
     <Compile Include="..\SnowVisuals.cs" Link="SnowVisuals.cs" />
+    <Compile Include="..\ExpandWorldDataCompat.cs" Link="ExpandWorldDataCompat.cs" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <PackageReference Include="Mono.Cecil" Version="0.11.6" />
   </ItemGroup>
